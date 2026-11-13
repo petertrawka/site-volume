@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Site Volume</title>
+  <script src="mock.js"></script>
+  <link rel="stylesheet" href="../popup.css">
+  <style>html,body{overflow:hidden}</style>
+</head>
+<body>
+  <div class="panel">
+    <header class="bar">
+      <span class="label">Volume</span>
+      <span class="status" id="status"></span>
+    </header>
+
+    <section class="card hero" id="hero" hidden>
+      <div class="hero-top">
+        <img class="fav" id="heroFav" alt="">
+        <div class="who">
+          <h1 id="heroTitle"></h1>
+          <p class="meta" id="heroHost"></p>
+        </div>
+        <div class="big" aria-hidden="true"><span id="bigNum">0</span><span class="unit">%</span></div>
+      </div>
+      <div class="stage" id="stage"></div>
+      <div class="hero-foot">
+        <button class="chip" id="heroMute" type="button"></button>
+        <button class="chip" id="heroGo" type="button">Go to tab</button>
+        <span class="hint">Drag · scroll · ↑↓</span>
+      </div>
+      <p class="note" id="heroNote" hidden>Reload this tab once to control it</p>
+    </section>
+
+    <section class="group" id="others" hidden>
+      <h2>Other tabs</h2>
+      <div class="card list" id="list"></div>
+    </section>
+
+    <section class="empty" id="empty" hidden>
+      <div class="empty-figure" id="emptyFigure" aria-hidden="true"></div>
+      <h2>Nothing is playing</h2>
+      <p>Start a player in any tab and it shows up here.</p>
+    </section>
+  </div>
+
+  <template id="rowTpl">
+    <div class="row">
+      <button class="pick" type="button" title="Make this the big one">
+        <img class="fav" alt="">
+        <span class="title"></span>
+        <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+      </button>
+      <div class="slider"><div class="rail"></div><div class="fill"></div><input type="range" min="0" max="100" step="1"></div>
+      <span class="pct"></span>
+    </div>
+  </template>
+
+  <script src="../lib/hairline-kernel.js"></script>
+  <script type="module" src="../popup.js"></script>
+</body>
+</html>

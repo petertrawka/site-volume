@@ -1,0 +1,156 @@
+/* Article Verdict's look (Vercel / Linear minimal): soft graphite, hairline borders, system type,
+   SF Mono numbers, colour only in small marks. A popup window can't be see-through, so the glass
+   becomes its solid fallback colour, as Article Verdict does under "reduce transparency". */
+:root {
+  --bg: #fafafa; --card: #fff; --hover: #f5f5f5;
+  --fg: #171717; --secondary: #666; --tertiary: #a3a3a3;
+  --border: #ebebeb; --fill: rgba(0,0,0,.04); --fill-strong: rgba(0,0,0,.08);
+  --fit: #3d6b52;
+  --mono: "SF Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  --ease: cubic-bezier(.32,.72,0,1);
+  --soft: cubic-bezier(.22,1,.36,1);
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);   /* Emil Kowalski's strong ease-out for UI */
+  --fit-soft: color-mix(in srgb, var(--fit) 16%, transparent);
+  /* Hairline palette for the pillar */
+  --hairline-plate: var(--card); --hairline-hi: #171717; --hairline-edge: #9a9aa2; --hairline-mid: #c9c9ce; --hairline-lo: #e6e6e9;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1f; --card: #232326; --hover: #29292d;
+    --fg: #ececee; --secondary: #a1a1a8; --tertiary: #707077;
+    --border: #333338; --fill: rgba(255,255,255,.05); --fill-strong: rgba(255,255,255,.1);
+    --fit: #6f9a80;
+    --hairline-plate: var(--card); --hairline-hi: #ececee; --hairline-edge: #6a6a72; --hairline-mid: #48484f; --hairline-lo: #35353b;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+body {
+  width: 360px; background: var(--bg); color: var(--fg);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", system-ui, sans-serif;
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+}
+button { all: unset; cursor: pointer; }
+:focus-visible { outline: 1px solid var(--fg); outline-offset: 2px; }
+::selection { background: var(--fill-strong); }
+
+.panel { padding: 12px 12px 14px; display: grid; gap: 8px; }
+
+/* Arrival, as in Article Verdict: drifts up and comes into focus; cards one after another. */
+/* Opening: the window opens many times a day, so it arrives fast and quiet (260ms), in a 50ms stagger.
+   Swaps, mute and dragging are run from popup.js / lift.js. */
+@keyframes rise { from { opacity: 0; transform: translateY(8px) scale(.985); filter: blur(4px); } }
+.rise { animation: rise 260ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 50ms); }
+
+/* ── Top line: quiet. The window's title is not the point; the level is. ── */
+.bar { display: flex; align-items: center; justify-content: space-between; padding: 2px 4px 0; }
+.label { font-size: 13px; font-weight: 500; color: var(--secondary); }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--tertiary); }
+.status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fit); }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; }
+.hero { transition: border-color 200ms ease, box-shadow 200ms ease; }
+.hero:has(.stage.is-held) { border-color: color-mix(in srgb, var(--fit) 45%, var(--border)); box-shadow: 0 0 0 3px var(--fit-soft); }
+
+/* ── The big one ── */
+.hero { padding: 14px 16px 12px; }
+.hero-top { display: flex; align-items: flex-start; gap: 10px; }
+.hero-top .fav { margin-top: 3px; }
+.who { flex: 1; min-width: 0; }
+h1 {
+  font-size: 14px; line-height: 1.35; font-weight: 600; letter-spacing: -.01em; text-wrap: balance;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
+.meta { margin-top: 2px; font-size: 12px; color: var(--secondary); display: flex; align-items: center; gap: 6px; }
+.big { flex: none; display: flex; align-items: baseline; margin-top: -4px; font-family: var(--mono); }
+#bigNum { font-size: 40px; line-height: 1; font-weight: 500; letter-spacing: -.04em; transition: color 200ms ease; }
+.hero:has(.stage.is-held) #bigNum { color: var(--fit); }   /* the number goes green while you drag */
+.unit { font-size: 15px; color: var(--tertiary); margin-left: 1px; }
+.hero.is-muted #bigNum { color: var(--tertiary); }
+
+.stage { margin: 2px -8px 0; aspect-ratio: 400 / 250; cursor: grab; touch-action: none; border-radius: 8px; }
+.stage.is-held { cursor: grabbing; }
+/* Level dots: lit ones clearly lit, unlit ones barely there */
+.stage svg .dot.m { fill: var(--secondary); }
+.stage svg .dot.off { fill: var(--fill-strong); }
+.stage:focus-visible { outline: 1px solid var(--fill-strong); outline-offset: -1px; }
+
+.hero-foot { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+.chip {
+  height: 28px; padding: 0 10px; border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--secondary); box-shadow: inset 0 0 0 1px var(--border);
+  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease, transform 120ms var(--ease-out);
+}
+.chip:active { transform: scale(.97); }
+.chip svg { width: 14px; height: 14px; }
+.hint { margin-left: auto; font: 11px/1 var(--mono); color: var(--tertiary); }
+.note { margin-top: 8px; font-size: 12px; color: var(--secondary); }
+.hero.is-dead .stage { opacity: .35; pointer-events: none; }
+
+/* Equaliser: the only colour, and only while the tab really makes sound */
+.eq { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; flex: none; }
+.eq i { width: 2px; height: 100%; background: var(--fit); border-radius: 1px; transform-origin: bottom; animation: eq 1s var(--soft) infinite alternate; }
+.eq i:nth-child(2) { animation-delay: -.35s; animation-duration: .8s; }
+.eq i:nth-child(3) { animation-delay: -.7s; animation-duration: 1.15s; }
+@keyframes eq { 0% { transform: scaleY(.3) } 50% { transform: scaleY(1) } 100% { transform: scaleY(.5) } }
+.quiet .eq { display: none; }
+
+/* ── Other tabs: an inset grouped list ── */
+.group h2 { padding: 8px 4px 6px; font-size: 13px; font-weight: 500; color: var(--secondary); }
+.list { overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) 92px 38px; align-items: center; gap: 10px; padding: 8px 12px 8px 10px; transition: background-color 150ms ease; }
+.row + .row { border-top: 1px solid var(--border); }
+.pick { display: flex; align-items: center; gap: 8px; min-width: 0; border-radius: 6px; padding: 2px; margin: -2px; }
+.title { min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pct { font: 12px/1 var(--mono); color: var(--secondary); text-align: right; }
+.row.is-muted .pct, .row.is-muted .title { color: var(--tertiary); }
+.row.is-dead .slider { opacity: .35; pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .row:hover { background: var(--hover); }
+  .chip:hover { background: var(--fill-strong); color: var(--fg); }
+}
+
+.fav { width: 16px; height: 16px; border-radius: 4px; flex: none; }
+
+/* Small hairline slider, Article Verdict's 2px line */
+.slider { position: relative; height: 20px; --v: 100%; }
+.rail, .fill { position: absolute; left: 0; top: 9px; height: 2px; border-radius: 1px; }
+.rail { right: 0; background: var(--fill-strong); }
+.fill { width: var(--v); background: var(--fg); }
+.slider input { position: absolute; inset: 0; width: 100%; height: 100%; appearance: none; background: transparent; cursor: pointer; margin: 0; }
+.slider input::-webkit-slider-runnable-track { height: 20px; background: transparent; }
+.slider input::-webkit-slider-thumb {
+  appearance: none; width: 12px; height: 12px; margin-top: 4px; border-radius: 50%;
+  background: var(--card); box-shadow: 0 0 0 1px var(--fg), 0 1px 3px rgba(0,0,0,.2);
+  transition: transform 160ms var(--ease-out);
+}
+.slider input:hover::-webkit-slider-thumb { transform: scale(1.15); }
+.slider input:active::-webkit-slider-thumb { transform: scale(.9); }
+/* Keyboard focus: a green ring on the knob, not a box round the whole slider */
+.slider input:focus-visible { outline: none; }
+.slider input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 1px var(--fit), 0 0 0 4px var(--fit-soft); }
+.slider input:focus:not(:focus-visible) { outline: none; }
+
+/* ── Empty ── */
+.empty { display: grid; justify-items: center; gap: 4px; padding: 8px 20px 18px; text-align: center; }
+.empty-figure { width: 170px; }
+.empty h2 { font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+.empty p { font-size: 13px; color: var(--secondary); max-width: 230px; }
+
+/* ── Green accent: small and meaningful. It marks "playing" and "you're changing this now". ── */
+.stage svg .dot.m { fill: var(--fit); }                          /* lit level dots */
+.stage.is-held svg .hi { stroke: var(--fit); }                    /* pillar outline while held */
+.row:not(.quiet) .fill { background: var(--fit); }                /* other tabs that are playing */
+:focus-visible { outline-color: var(--fit); }
+.stage:focus-visible { outline: 1px solid color-mix(in srgb, var(--fit) 55%, transparent); }
+
+/* Reduced motion: keep fades (they help you follow the change), drop movement and blur */
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise { from { opacity: 0; } }
+  .rise { animation-duration: 200ms; animation-delay: 0ms; }
+  .eq i { animation: none; transform: scaleY(.6); }
+  .chip, .slider input::-webkit-slider-thumb { transition: none; }
+}
