@@ -19,7 +19,8 @@
     tabs: {
       query: async () => tabs,
       update: () => {},
-      sendMessage: (id, m, cb) => {
+      sendMessage: (id, m, a, b) => {
+        const cb = typeof a === 'function' ? a : b;
         if (m.type === 'get') setTimeout(() => cb({ host: new URL(tabs.find(t => t.id === id).url).hostname, vol: vols[id], hasMedia: true }), 5);
         else { if (m.type === 'set') vols[id] = m.vol; cb?.(); }
       },

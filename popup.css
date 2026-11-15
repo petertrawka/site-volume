@@ -65,7 +65,9 @@ h1 {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .meta { margin-top: 2px; font-size: 12px; color: var(--secondary); display: flex; align-items: center; gap: 6px; }
-.big { flex: none; display: flex; align-items: baseline; margin-top: -4px; font-family: var(--mono); }
+.level { flex: none; display: grid; justify-items: end; margin-top: -4px; }
+.big { display: flex; align-items: baseline; font-family: var(--mono); }
+.of { margin-top: 3px; font-size: 11px; line-height: 1; color: var(--tertiary); white-space: nowrap; }
 #bigNum { font-size: 40px; line-height: 1; font-weight: 500; letter-spacing: -.04em; transition: color 200ms ease; }
 .hero:has(.stage.is-held) #bigNum { color: var(--fit); }   /* the number goes green while you drag */
 .unit { font-size: 15px; color: var(--tertiary); margin-left: 1px; }

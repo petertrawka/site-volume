@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Site Volume",
-  "version": "3.4",
+  "version": "3.5",
   "description": "A volume slider for every tab. Every tab starts at 100%.",
   "permissions": [
     "contextMenus",
@@ -34,7 +34,9 @@
       ],
       "run_at": "document_start",
       "world": "MAIN",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     },
     {
       "matches": [
@@ -44,7 +46,10 @@
         "content.js"
       ],
       "run_at": "document_start",
-      "all_frames": true
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true
     }
-  ]
+  ],
+  "minimum_chrome_version": "111"
 }

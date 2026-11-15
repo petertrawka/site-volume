@@ -10,15 +10,18 @@
   if (!desc || !desc.set) return;
 
   const wanted = new WeakMap();   // what the page itself asked for, per player
-  const media = new Set();
+  // Every player we've seen, held weakly so sites that make a new Audio() per sound don't leak memory.
+  const known = new WeakSet();
+  const media = new Set();        // of WeakRef
+  const remember = el => { if (!known.has(el)) { known.add(el); media.add(new WeakRef(el)); return true; } return false; };
+  const each = fn => media.forEach(r => { const el = r.deref(); if (el) fn(el); else media.delete(r); });
   let level = null;               // our level, 0..1; null until set
 
   const real = (el, v) => desc.set.call(el, level === null ? v : Math.max(0, Math.min(1, v * level)));
   const pageVol = el => (wanted.has(el) ? wanted.get(el) : desc.get.call(el));
 
   const track = el => {
-    if (!media.has(el)) {
-      media.add(el);
+    if (remember(el)) {
       if (!wanted.has(el)) wanted.set(el, desc.get.call(el));
       document.dispatchEvent(new CustomEvent('site-volume-media'));
     }
@@ -29,7 +32,13 @@
     configurable: true,
     enumerable: desc.enumerable,
     get() { return pageVol(this); },
-    set(v) { wanted.set(this, v); media.add(this); real(this, v); },
+    set(v) {
+      // Same checks as the browser's own setter, so a page that relies on them sees no difference.
+      const n = Number(v);
+      if (!Number.isFinite(n)) throw new TypeError("Failed to set the 'volume' property on 'HTMLMediaElement': The provided double value is non-finite.");
+      if (n < 0 || n > 1) throw new DOMException(`Failed to set the 'volume' property on 'HTMLMediaElement': The volume provided (${n}) is outside the range [0, 1].`, 'IndexSizeError');
+      wanted.set(this, n); remember(this); real(this, n);
+    },
   });
 
   const origPlay = proto.play;
@@ -39,8 +48,8 @@
 
   document.addEventListener('site-volume-set', e => {
     level = e.detail;
-    document.querySelectorAll('audio, video').forEach(el => media.add(el));
-    media.forEach(el => {
+    document.querySelectorAll('audio, video').forEach(remember);
+    each(el => {
       if (!wanted.has(el)) wanted.set(el, desc.get.call(el));
       real(el, pageVol(el));
     });

@@ -7,10 +7,16 @@ const GLOBE = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www
 const ICON_ON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6h2l3-2.5v9L4.5 10h-2z"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6.3 6.3 0 0 1 0 9"/></svg>';
 const ICON_OFF = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6h2l3-2.5v9L4.5 10h-2z"/><path d="M10.5 6l4 4M14.5 6l-4 4"/></svg>';
 
-const ask = tab => new Promise(res => {
-  const t = setTimeout(() => res(null), 400);
-  chrome.tabs.sendMessage(tab.id, { type: 'get' }, r => { clearTimeout(t); void chrome.runtime.lastError; res(r || null); });
-});
+// Ask a tab for its level. A busy or sleeping tab can be slow, so after 400ms the popup opens anyway
+// and that tab fills in whenever it answers (`late`). The browser always calls back, with an error if
+// the tab has no script, so only a tab without our script gets "reload".
+const SLOW = Symbol('slow');
+const ask = tab => {
+  const late = new Promise(res => {
+    chrome.tabs.sendMessage(tab.id, { type: 'get' }, { frameId: 0 }, r => { void chrome.runtime.lastError; res(r || null); });
+  });
+  return { late, early: Promise.race([late, new Promise(res => setTimeout(() => res(SLOW), 400))]) };
+};
 const send = (tabId, vol) => chrome.tabs.sendMessage(tabId, { type: 'set', vol }, () => void chrome.runtime.lastError);
 const hostOf = url => { try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; } };
 // Page titles often start with a play mark or an unread count: "▶ Song", "(1) X".
@@ -68,8 +74,7 @@ function showHero(item, animate) {
       $('#heroHost').append(eq);
     }
     fav($('#heroFav'), item.tab.favIconUrl);
-    h.classList.toggle('is-dead', !item.info);
-    $('#heroNote').hidden = !!item.info;
+    paintState(item);
   };
   const label = `Volume for ${hostOf(item.tab.url)}`;
   if (!pillar) {
@@ -106,6 +111,18 @@ $('#heroGo').onclick = () => {
   chrome.windows.update(hero.tab.windowId, { focused: true });
 };
 
+// No answer yet: greyed out while waiting. No answer at all: greyed out with "reload" on the big card.
+function paintState(item) {
+  const dead = !item.info;
+  if (item === hero) {
+    $('#hero').classList.toggle('is-dead', dead);
+    $('#heroNote').hidden = !dead || item.waiting;
+  } else if (item.row) {
+    item.row.classList.toggle('is-dead', dead);
+    item.row.querySelector('.pct').textContent = item.info ? Math.round(item.vol * 100) + '%' : '—';
+  }
+}
+
 /* ── Other tabs ── */
 function paintRow(item) {
   if (!item.row) return;
@@ -127,7 +144,7 @@ function renderRows(animate, prev) {
     fav(row.querySelector('.fav'), item.tab.favIconUrl);
     row.querySelector('.title').textContent = clean(item.tab.title) || hostOf(item.tab.url);
     row.classList.toggle('quiet', !item.tab.audible);
-    row.classList.toggle('is-dead', !item.info);
+    paintState(item);
     row.querySelector('.pick').onclick = () => showHero(item, true);
     const input = row.querySelector('input');
     input.setAttribute('aria-label', `Volume for ${hostOf(item.tab.url)}`);
@@ -147,24 +164,66 @@ function renderRows(animate, prev) {
 async function start() {
   winId = (await chrome.windows.getCurrent()).id;
   const tabs = (await chrome.tabs.query({})).filter(t => /^https?:/.test(t.url || ''));
-  const infos = await Promise.all(tabs.map(ask));
+  const asks = tabs.map(ask);
+  const infos = await Promise.all(asks.map(a => a.early));
   const isHere = t => t.active && t.windowId === winId;
 
-  items = tabs.map((tab, i) => ({ tab, info: infos[i], vol: infos[i]?.vol ?? 1 }))
-    .filter(({ tab, info }) => tab.audible || info?.hasMedia)
+  const all = tabs.map((tab, i) => {
+    const waiting = infos[i] === SLOW, info = waiting ? null : infos[i];
+    return { tab, info, waiting, vol: info?.vol ?? 1, late: asks[i].late };
+  });
+  // The tab you're on stays in while it's still answering, in case it has a player.
+  items = all.filter(i => qualifies(i) || (i.waiting && isHere(i.tab)))
     .sort((a, b) => (b.tab.audible - a.tab.audible) || (isHere(b.tab) - isHere(a.tab)));
   items.forEach(i => { if (i.vol > 0) last.set(i.tab.id, i.vol); });
+  paintStatus();
 
+  if (!items.length) showEmpty();
+  // The big one: the tab you're on if it has a player, else the first one playing.
+  else showHero(items.find(i => isHere(i.tab) && (i.waiting || i.info?.hasMedia || i.tab.audible)) || items[0], false);
+
+  // Slow tabs fill in when they answer, including ones not listed yet.
+  all.filter(i => i.waiting).forEach(item => item.late.then(info => settle(item, info)));
+}
+
+const qualifies = i => i.tab.audible || !!i.info?.hasMedia;
+
+function paintStatus() {
   const playing = items.filter(i => i.tab.audible).length;
   $('#status').innerHTML = playing ? `<span class="dot"></span>${playing} playing` : (items.length ? `${items.length} with a player` : '');
+}
 
-  if (!items.length) {
-    $('#empty').hidden = false; $('#empty').classList.add('rise');
-    plug($('#emptyFigure'), { play: true, intensity: 0.5, label: 'Nothing plugged in' });
+let plugged = false;
+function showEmpty() {
+  $('#hero').hidden = true; $('#others').hidden = true;
+  $('#empty').hidden = false; $('#empty').classList.add('rise');
+  if (!plugged) { plugged = true; plug($('#emptyFigure'), { play: true, intensity: 0.5, label: 'Nothing plugged in' }); }
+}
+
+// A slow tab answered: fill it in, add it if it turned out to have a player, drop it if it didn't.
+function settle(item, info) {
+  item.waiting = false;
+  item.info = info;
+  if (info) { item.vol = info.vol; if (info.vol > 0) last.set(item.tab.id, info.vol); }
+  const listed = items.includes(item);
+  if (!listed) {
+    if (!qualifies(item)) return;
+    items.push(item);
+    paintStatus();
+    if (!hero) { $('#empty').hidden = true; showHero(item, false); }
+    else renderRows(true, null);
     return;
   }
-  // The big one: the tab you're on if it has a player, else the first one playing.
-  showHero(items.find(i => isHere(i.tab) && (i.info?.hasMedia || i.tab.audible)) || items[0], false);
+  if (!qualifies(item)) {
+    items = items.filter(i => i !== item);
+    paintStatus();
+    if (item !== hero) renderRows(true, null);
+    else if (items.length) showHero(items[0], true);
+    else { hero = null; showEmpty(); }
+    return;
+  }
+  paintState(item);
+  if (item === hero) paintHero(true, true); else paintRow(item);
 }
 
 start();
